@@ -74,6 +74,19 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
     return container.weakObject;
 }
 
+- (BOOL)emptyWithSections {
+    NSNumber *value = objc_getAssociatedObject(self, _cmd);
+    if (!value) {
+        return NO;
+    }
+    return [value boolValue];
+}
+
+- (void)setEmptyWithSections:(BOOL)emptyWithSections {
+    NSNumber *value = [NSNumber numberWithBool:emptyWithSections];
+    objc_setAssociatedObject(self, @selector(emptyWithSections), value, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
 - (BOOL)isEmptyDataSetVisible
 {
     UIView *view = objc_getAssociatedObject(self, kEmptyDataSetView);
@@ -132,6 +145,9 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
         
         if (dataSource && [dataSource respondsToSelector:@selector(numberOfSectionsInTableView:)]) {
             sections = [dataSource numberOfSectionsInTableView:tableView];
+            if (self.emptyWithSections && sections > 0) {
+                return sections;
+            }
         }
         
         if (dataSource && [dataSource respondsToSelector:@selector(tableView:numberOfRowsInSection:)]) {
@@ -150,6 +166,9 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
         
         if (dataSource && [dataSource respondsToSelector:@selector(numberOfSectionsInCollectionView:)]) {
             sections = [dataSource numberOfSectionsInCollectionView:collectionView];
+            if (self.emptyWithSections && sections > 0) {
+                return sections;
+            }
         }
         
         if (dataSource && [dataSource respondsToSelector:@selector(collectionView:numberOfItemsInSection:)]) {
@@ -448,9 +467,6 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
         
         DZNEmptyDataSetView *view = self.emptyDataSetView;
         
-        // Configure empty dataset fade in display
-        view.fadeInOnDisplay = [self dzn_shouldFadeIn];
-        
         if (!view.superview) {
             // Send the view all the way to the back, in case a header and/or footer is present, as well as for sectionHeaders or any other content
             if (([self isKindOfClass:[UITableView class]] || [self isKindOfClass:[UICollectionView class]]) && self.subviews.count > 1) {
@@ -530,10 +546,13 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
         // Configure empty dataset userInteraction permission
         view.userInteractionEnabled = [self dzn_isTouchAllowed];
         
+        // Configure empty dataset fade in display
+        view.fadeInOnDisplay = [self dzn_shouldFadeIn];
+        
         [view setupConstraints];
         
         [UIView performWithoutAnimation:^{
-            [view layoutIfNeeded];
+            [view layoutIfNeeded];            
         }];
         
         // Configure scroll permission
@@ -697,7 +716,6 @@ Class dzn_baseClassToSwizzleForTarget(id target)
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
     UIGestureRecognizer *tapGesture = self.emptyDataSetView.tapGesture;
-    
     if ([gestureRecognizer isEqual:tapGesture] || [otherGestureRecognizer isEqual:tapGesture]) {
         return YES;
     }
@@ -735,8 +753,7 @@ Class dzn_baseClassToSwizzleForTarget(id target)
 
 - (void)didMoveToSuperview
 {
-    CGRect superviewBounds = self.superview.bounds;
-    self.frame = CGRectMake(0.0, 0.0, CGRectGetWidth(superviewBounds), CGRectGetHeight(superviewBounds));
+    self.frame = self.superview.bounds;
     
     void(^fadeInBlock)(void) = ^{_contentView.alpha = 1.0;};
     
@@ -934,8 +951,12 @@ Class dzn_baseClassToSwizzleForTarget(id target)
     
     // If applicable, set the custom view's constraints
     if (_customView) {
-        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[customView]|" options:0 metrics:nil views:@{@"customView":_customView}]];
-        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[customView]|" options:0 metrics:nil views:@{@"customView":_customView}]];
+//        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[customView]|" options:0 metrics:nil views:@{@"customView":_customView}]];
+//        [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[customView]|" options:0 metrics:nil views:@{@"customView":_customView}]];
+        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:_customView attribute:NSLayoutAttributeLeft relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeLeft multiplier:1.0 constant:0]];
+        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:_customView attribute:NSLayoutAttributeRight relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeRight multiplier:1.0 constant:0]];
+        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:_customView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeTop multiplier:1.0 constant:0]];
+        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:_customView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0]];
     }
     else {
         CGFloat width = CGRectGetWidth(self.frame) ? : CGRectGetWidth([UIScreen mainScreen].bounds);
@@ -1035,7 +1056,10 @@ Class dzn_baseClassToSwizzleForTarget(id target)
     if ([hitView isEqual:_contentView] || [hitView isEqual:_customView]) {
         return hitView;
     }
-    
+    // 添加的部分，判断是否点击空白页
+//    if ([hitView isKindOfClass:[DZNEmptyDataSetView class]]) {
+//        return hitView;
+//    }
     return nil;
 }
 
