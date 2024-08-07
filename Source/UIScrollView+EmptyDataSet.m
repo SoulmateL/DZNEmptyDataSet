@@ -475,6 +475,15 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
             else {
                 [self addSubview:view];
             }
+            
+            if (self.constraints) {
+                [view removeConstraints:self.constraints];
+            }
+            
+            NSLayoutConstraint *centerXConstraint = [self equallyRelatedConstraintWithView:view attribute:NSLayoutAttributeCenterX];
+            NSLayoutConstraint *centerYConstraint = [self equallyRelatedConstraintWithView:view attribute:NSLayoutAttributeCenterY];
+            NSLayoutConstraint *topConstraint = [self equallyRelatedConstraintWithView:view attribute:NSLayoutAttributeTop];
+            NSLayoutConstraint *bottomConstraint = [self equallyRelatedConstraintWithView:view attribute:NSLayoutAttributeBottom];
         }
         
         // Removing view resetting the view and its constraints it very important to guarantee a good state
@@ -552,7 +561,7 @@ static char const * const kEmptyDataSetView =       "emptyDataSetView";
         [view setupConstraints];
         
         [UIView performWithoutAnimation:^{
-            [view layoutIfNeeded];            
+            [view layoutIfNeeded];
         }];
         
         // Configure scroll permission
@@ -754,7 +763,6 @@ Class dzn_baseClassToSwizzleForTarget(id target)
 - (void)didMoveToSuperview
 {
     self.frame = self.superview.bounds;
-    
     void(^fadeInBlock)(void) = ^{_contentView.alpha = 1.0;};
     
     if (self.fadeInOnDisplay) {
@@ -939,10 +947,15 @@ Class dzn_baseClassToSwizzleForTarget(id target)
     // The content view must alway be centered to its superview
     NSLayoutConstraint *centerXConstraint = [self equallyRelatedConstraintWithView:self.contentView attribute:NSLayoutAttributeCenterX];
     NSLayoutConstraint *centerYConstraint = [self equallyRelatedConstraintWithView:self.contentView attribute:NSLayoutAttributeCenterY];
+    NSLayoutConstraint *topConstraint = [self equallyRelatedConstraintWithView:self.contentView attribute:NSLayoutAttributeTop];
+    NSLayoutConstraint *bottomConstraint = [self equallyRelatedConstraintWithView:self.contentView attribute:NSLayoutAttributeBottom];
+
     
     [self addConstraint:centerXConstraint];
     [self addConstraint:centerYConstraint];
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[contentView]|" options:0 metrics:nil views:@{@"contentView": self.contentView}]];
+    [self addConstraint:topConstraint];
+    [self addConstraint:centerYConstraint];
+//    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[contentView]|" options:0 metrics:nil views:@{@"contentView": self.contentView}]];
     
     // When a custom offset is available, we adjust the vertical constraints' constants
     if (self.verticalOffset != 0 && self.constraints.count > 0) {
